@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Answer, AssessmentAssignment, Question
@@ -9,8 +9,20 @@ from app.services.scoring import enqueue_scoring_job
 
 def get_next_question(db: Session, token: str):
     assignment = get_assignment_by_token(db, token)
+    answered_count = db.scalar(
+        select(func.count(Answer.id))
+        .join(Question, Question.id == Answer.question_id)
+        .where(
+            Answer.candidate_id == assignment.candidate_id,
+            Question.role == assignment.role,
+        )
+    ) or 0
+    total_questions = db.scalar(
+        select(func.count(Question.id)).where(Question.role == assignment.role)
+    ) or 0
+
     if assignment.status != AssignmentStatus.ACTIVE:
-        return assignment, None
+        return assignment, None, answered_count, total_questions
     answered = select(Answer.question_id).where(
         Answer.candidate_id == assignment.candidate_id
     )
@@ -19,7 +31,7 @@ def get_next_question(db: Session, token: str):
         .where(Question.role == assignment.role, Question.id.not_in(answered))
         .order_by(Question.position)
     )
-    return assignment, question
+    return assignment, question, answered_count, total_questions
 
 
 def save_text_answer(db: Session, token: str, question_id, answer_text: str) -> Answer:

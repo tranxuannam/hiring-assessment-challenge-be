@@ -39,6 +39,7 @@ class HRAnswerResponse(BaseModel):
     question: str
     answer_text: str | None
     audio_path: str | None
+    audio_url: str | None
     suggested_score: float | None
     suggested_reason: str | None
     effective_score: float | None
@@ -54,6 +55,11 @@ class ScoreOverrideResponse(BaseModel):
     answer_id: UUID
     score: int
     reason: str
+
+
+class ScoreRetryResponse(BaseModel):
+    answer_id: UUID
+    status: str
 
 
 class ScoreOverrideAuditResponse(BaseModel):

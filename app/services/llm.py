@@ -27,6 +27,10 @@ class LLMClient(Protocol):
 class LLMClientError(RuntimeError):
     """Raised when the provider cannot produce a usable result."""
 
+    def __init__(self, message: str, *, error_type: str | None = None):
+        super().__init__(message)
+        self.error_type = error_type
+
 
 class InvalidLLMOutput(LLMClientError):
     """Raised when the provider response violates the scoring contract."""
@@ -77,4 +81,7 @@ class OpenAIGradingClient:
         except InvalidLLMOutput:
             raise
         except Exception as exc:
-            raise LLMClientError("LLM scoring request failed") from exc
+            raise LLMClientError(
+                f"LLM scoring request failed: {type(exc).__name__}: {str(exc)[:500]}",
+                error_type=type(exc).__name__,
+            ) from exc

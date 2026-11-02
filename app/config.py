@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     database_url: str = "sqlite:///./hiring_assessment.db"
     log_level: str = "INFO"
+    frontend_urls: str = "http://localhost:3000,http://localhost:3001"
     llm_api_key: str | None = None
     llm_base_url: str | None = None
     llm_model: str = "gpt-4o-mini"

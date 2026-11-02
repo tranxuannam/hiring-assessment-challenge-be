@@ -12,6 +12,8 @@ class CandidateQuestionResponse(BaseModel):
 class CandidateAssignmentResponse(BaseModel):
     status: str
     next_question: CandidateQuestionResponse | None
+    answered_count: int
+    total_questions: int
 
 
 class CandidateAnswerRequest(BaseModel):

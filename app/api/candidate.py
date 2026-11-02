@@ -25,7 +25,7 @@ router = APIRouter(prefix="/candidate", tags=["candidate"])
 
 @router.get("/assessments/{token}", response_model=CandidateAssignmentResponse)
 def get_assignment(token: str, db: Session = Depends(get_db)):
-    assignment, question = get_next_question(db, token)
+    assignment, question, answered_count, total_questions = get_next_question(db, token)
     return CandidateAssignmentResponse(
         status=assignment.status.value,
         next_question=(
@@ -37,6 +37,8 @@ def get_assignment(token: str, db: Session = Depends(get_db)):
             if question
             else None
         ),
+        answered_count=answered_count,
+        total_questions=total_questions,
     )
 
 
@@ -67,7 +69,17 @@ async def upload_audio(
     assignment = get_assignment_by_token(db, token)
     if assignment.status.value != "active":
         raise HTTPException(status_code=409, detail="Assignment is closed")
-    if file.content_type not in {"audio/mpeg", "audio/wav", "audio/webm", "audio/ogg"}:
+    allowed_audio_types = {
+        "audio/m4a",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/mpeg",
+        "audio/wav",
+        "audio/webm",
+        "audio/ogg",
+    }
+    file_extension = Path(file.filename or "").suffix.lower()
+    if file.content_type not in allowed_audio_types and file_extension != ".m4a":
         raise HTTPException(status_code=415, detail="Unsupported audio type")
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:
@@ -91,7 +103,7 @@ async def upload_audio(
         )
     upload_dir = Path("uploads") / str(assignment.candidate_id)
     upload_dir.mkdir(parents=True, exist_ok=True)
-    path = upload_dir / f"{question_id}-{secrets.token_hex(16)}.audio"
+    path = upload_dir / f"{question_id}-{secrets.token_hex(16)}{file_extension or '.audio'}"
     path.write_bytes(content)
     answer = Answer(
         candidate_id=assignment.candidate_id,

@@ -55,16 +55,20 @@ def process_scoring_job(
     if job.status == ScoringJobStatus.FAILED and job.attempts >= settings.scoring_max_attempts:
         return job
 
-    job.status = ScoringJobStatus.PROCESSING
-    job.attempts += 1
-    db.commit()
+    if job.status != ScoringJobStatus.PROCESSING:
+        job.status = ScoringJobStatus.PROCESSING
+        job.attempts += 1
+        db.commit()
 
     try:
         provider = client or OpenAIGradingClient(settings)
         answer = job.answer
-        candidate_text = answer.answer_text or (
-            "Audio answer is stored at the configured path and has not been transcribed."
-        )
+        if not answer.answer_text:
+            job.status = ScoringJobStatus.NEEDS_HUMAN
+            job.last_error = "Audio answer requires transcription before LLM scoring"
+            db.commit()
+            return job
+        candidate_text = answer.answer_text
         result = ScoringResult.model_validate(provider.score(
             question=answer.question.prompt,
             grading_guide=answer.question.evaluation_criteria,

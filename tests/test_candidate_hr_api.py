@@ -85,6 +85,38 @@ def test_candidate_progress_and_duplicate_answer_are_safe(client, test_engine):
     assert refreshed.json()["next_question"] is None
 
 
+def test_candidate_progress_only_counts_answers_for_assignment_role(
+    client, test_engine
+):
+    token, question_id, candidate_id = seed_assignment(
+        test_engine, f"{uuid4()}@example.com"
+    )
+    with Session(test_engine) as db:
+        other_question = Question(
+            role="Private Role",
+            prompt="Private question",
+            position=1,
+            evaluation_criteria="Private",
+        )
+        db.add(other_question)
+        db.commit()
+        db.add(
+            Answer(
+                candidate_id=candidate_id,
+                question_id=other_question.id,
+                answer_text="An answer for another assessment.",
+            )
+        )
+        db.commit()
+
+    response = client.get(f"/candidate/assessments/{token}")
+
+    assert response.status_code == 200
+    assert response.json()["answered_count"] == 0
+    assert response.json()["total_questions"] == 1
+    assert response.json()["next_question"]["question_id"] == str(question_id)
+
+
 def test_candidate_cannot_submit_another_role_question(client, test_engine):
     token, _, _ = seed_assignment(test_engine, f"{uuid4()}@example.com")
     with Session(test_engine) as db:

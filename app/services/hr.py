@@ -71,8 +71,11 @@ def effective_score(db: Session, answer: Answer) -> float | None:
 
 def override_score(db: Session, hr: Candidate, answer_id, new_score: int, reason: str):
     answer = get_answer_for_hr(db, answer_id)
-    if not answer or not answer.score:
-        raise LookupError("Scored answer not found")
+    if not answer:
+        raise LookupError("Answer not found")
+    if not answer.score:
+        status = answer.scoring_job.status.value if answer.scoring_job else "not_queued"
+        raise ValueError(f"Answer has no suggested score; current scoring status: {status}")
     audit = ScoreOverrideAudit(
         score_id=answer.score.id,
         hr_user_id=hr.id,
